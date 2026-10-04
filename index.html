@@ -63,6 +63,8 @@ textarea{min-height:60px}
 .cc>*{width:100%;max-width:560px}.cc .units{justify-content:center}
 .badge{background:var(--ok);color:#fff;border-radius:99px;padding:2px 9px;font-size:.78rem;font-weight:700}
 .expl{margin-top:8px;padding:10px 12px;border-left:4px solid var(--ac);background:var(--ac2);border-radius:6px;font-size:.92rem}
+textarea.ag{overflow:hidden;resize:none;min-height:42px;line-height:1.45}
+.qc{border-left:4px solid var(--ac)}.opt-r{display:flex;gap:8px;align-items:flex-start;margin:4px 0}.opt-r input[type=radio]{width:auto;margin-top:12px}.opt-r b{margin-top:10px;width:18px}
 </style></head><body>
 <div class="wrap" id="app"></div>
 <script>
@@ -101,7 +103,7 @@ function render(){
  else if(p==='countdown')h+=pCountdown();
  else if(p==='admin')h+=pAdmin();
  else h+=pHome();
- A.innerHTML=h;
+ A.innerHTML=h;document.querySelectorAll('textarea.ag').forEach(ag);
  if(p==='countdown'||!p)timerId=setInterval(tick,1000);
  if(p==='exam'&&exam&&!exam.done)timerId=setInterval(examTick,1000);
 }
@@ -163,9 +165,9 @@ function pAdmin(){
  <label class="mut">Quotes (one per line)</label><textarea style="min-height:110px" oninput="S.cd.quotes=this.value.split('\\n').filter(x=>x.trim());saveSoon()">${esc(S.cd.quotes.join('\n'))}</textarea></div>
  <div class="card"><h3>Exams</h3>
  <select onchange="const v=this.value.split('-');aSel={ti:+v[0],si:+v[1],ex:null};render()">${S.terms.map((t,ti)=>t.subjects.map((s,si)=>`<option value="${ti}-${si}" ${ti==aSel.ti&&si==aSel.si?'selected':''}>${esc(t.name)} \u2014 ${esc(s.name)}</option>`).join('')).join('')}</select>
- ${sub.exams.map(e=>`<div class="row" style="margin:6px 0"><span style="flex:1">${esc(e.title)} <span class="mut">(${e.qs.length} q)</span></span><button class="btn alt sm" onclick="aSel.ex='${e.id}';render()">Edit</button><button class="btn red sm" onclick="delExam('${e.id}')">Delete</button></div>`).join('')||'<p class="mut">No exams yet.</p>'}
+ ${sub.exams.map(e=>`<div class="row" style="margin:6px 0"><span style="flex:1">${esc(e.title)} <span class="mut">(${e.qs.length} q)</span></span><button class="btn alt sm" onclick="go('examedit/${aSel.ti}/${aSel.si}/${e.id}')">Edit questions</button><button class="btn red sm" onclick="delExam('${e.id}')">Delete</button></div>`).join('')||'<p class="mut">No exams yet.</p>'}
  <button class="btn" onclick="addExam()">+ Add exam</button></div>
- ${ex?editor(ex):''}
+ 
  <button class="lnk" onclick="admin=false;sb&&sb.auth.signOut();go('')">Log out</button>`}
 function editor(ex){return `<div class="card"><h3>Editing: ${esc(ex.title)}</h3>
  <label class="mut">Exam title</label><input value="${esc(ex.title)}" oninput="cur().title=this.value;saveSoon()">
@@ -176,7 +178,7 @@ function editor(ex){return `<div class="card"><h3>Editing: ${esc(ex.title)}</h3>
  <div class="mut">Select the circle next to the correct answer.</div></div>`).join('')}
  <button class="btn alt" onclick="addQ()">+ Add question</button></div>`}
 const cur=()=>find(aSel.ti,aSel.si).exams.find(e=>e.id===aSel.ex);
-function addExam(){const t=prompt('Exam title?');if(!t)return;const e={id:uid(),title:t,min:30,qs:[]};find(aSel.ti,aSel.si).exams.push(e);aSel.ex=e.id;save();render()}
+function addExam(){const t=prompt('Exam title?');if(!t)return;const e={id:uid(),title:t,min:30,qs:[]};find(aSel.ti,aSel.si).exams.push(e);aSel.ex=e.id;save();go('examedit/'+aSel.ti+'/'+aSel.si+'/'+e.id)}
 function delExam(id){if(!confirm('Delete this exam?'))return;const s=find(aSel.ti,aSel.si);s.exams=s.exams.filter(e=>e.id!==id);if(aSel.ex===id)aSel.ex=null;save();render()}
 function addQ(){cur().qs.push({q:'',o:['','','',''],a:0});save();render()}
 function delQ(i){cur().qs.splice(i,1);save();render()}
@@ -276,6 +278,7 @@ head=function(){const r=route()[0];const l=(p,t)=>`<button class="lnk" style="${
  return `<header><div class="logo" onclick="go('')">Our course <span>42</span></div><nav style="display:flex;gap:14px">${l('','Home')}${l('courses','Courses')}${l('admin',admin?'Dashboard':'Admin')}</nav></header>`};
 const _home2=pHome;
 pHome=function(){const r=route();
+ if(r[0]==='examedit')return pEE(+r[1],+r[2],r[3]);
  if(r[0]==='courses')return r[1]!==undefined?pLec(+r[1],+r[2]):pCourses();
  const A=allEx(),H=hist(),n=Object.keys(H).length,nq=A.reduce((a,x)=>a+x.e.qs.length,0);
  const avg=n?Math.round(Object.values(H).reduce((a,x)=>a+x.pct,0)/n):0,hr=new Date().getHours();
@@ -308,6 +311,27 @@ pAdmin=function(){const h=_adm2();if(!admin)return h;const s=find(lSel.ti,lSel.s
  <p class="mut">The preview is pulled from YouTube automatically. If it doesn't load, paste a direct image URL.</p></div>`;
  return h.replace('<button class="lnk" onclick="admin=false',x+'<button class="lnk" onclick="admin=false')};
 function mvLec(sid,i,d){const L=lecs(sid),j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];save();render()}
+
+/* ===== ROUND 4: dedicated exam editor page ===== */
+function ag(el){el.style.height='auto';el.style.height=(el.scrollHeight+2)+'px'}
+addEventListener('resize',()=>document.querySelectorAll('textarea.ag').forEach(ag));
+function pEE(ti,si,id){
+ if(!admin)return '<div class="card">Please log in from the <a class="lnk" onclick="go(\'admin\')">Admin page</a> first.</div>';
+ const s=find(ti,si),ex=s&&s.exams.find(e=>e.id===id);if(!ex)return '<div class="card">Exam not found.</div>';
+ aSel={ti,si,ex:id};
+ return `<button class="lnk" onclick="go('admin')">\u2190 Back to dashboard</button><h2>${esc(ex.title)}</h2><div class="mut">${esc(s.name)} \u00b7 ${ex.qs.length} question${ex.qs.length==1?'':'s'} \u00b7 changes save automatically</div>`+editor(ex)}
+editor=function(ex){return `<div class="card"><label class="mut">Exam title</label><textarea class="ag" rows="1" oninput="ag(this);cur().title=this.value;saveSoon()">${esc(ex.title)}</textarea>
+ <label class="mut">Time limit (minutes)</label><input type="number" min="1" value="${ex.min}" oninput="cur().min=Math.max(1,+this.value||1);saveSoon()"></div>
+ <button class="btn alt" onclick="addQ()">+ Add question</button>
+ ${ex.qs.map((q,i)=>`<div class="card qc"><div class="row"><b>Question ${i+1}</b><span style="flex:1"></span><button class="btn red sm" onclick="delQ(${i})">Remove</button></div>
+ <textarea class="ag" rows="2" placeholder="Question text" oninput="ag(this);cur().qs[${i}].q=this.value;saveSoon()">${esc(q.q)}</textarea>
+ ${q.o.map((o,j)=>`<div class="opt-r"><input type="radio" name="r${i}" ${q.a===j?'checked':''} onchange="cur().qs[${i}].a=${j};save()"><b>${'ABCD'[j]}</b><textarea class="ag" rows="1" placeholder="Answer ${'ABCD'[j]}" oninput="ag(this);cur().qs[${i}].o[${j}]=this.value;saveSoon()">${esc(o)}</textarea></div>`).join('')}
+ <div class="mut">Select the circle next to the correct answer.</div>
+ <label class="mut">Explanation (shown after the exam)</label><textarea class="ag" rows="2" oninput="ag(this);cur().qs[${i}].x=this.value;saveSoon()">${esc(q.x||'')}</textarea></div>`).join('')}
+ <button class="btn alt" onclick="addQ()">+ Add question</button>
+ <div class="card"><h3>Bulk import</h3><p class="mut">One question per line: Question | A | B | C | D | correct letter | explanation (optional)</p>
+ <textarea class="ag" rows="5" id="bulk"></textarea><button class="btn" onclick="bulk()">Import into this exam</button></div>
+ <button class="btn" onclick="go('admin')">Done</button>`};
 render();
 (async()=>{try{
  if(!window.supabase||SUPABASE_URL.startsWith('YOUR'))return;
