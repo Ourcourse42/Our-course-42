@@ -251,12 +251,19 @@ const _adm=pAdmin;
 pAdmin=function(){const h=_adm();if(!admin)return h;
  const t=S.terms[aSel.ti];
  const extra=`<div class="card"><h3>Announcement banner</h3><input placeholder="Shown on the home page (empty = hidden)" value="${esc(S.ann||'')}" oninput="S.ann=this.value;saveSoon()"></div>
+ <div class="card"><h3>Terms</h3>
+ <select onchange="aSel={ti:+this.value,si:0,ex:null};lSel={ti:+this.value,si:0};render()">${S.terms.map((x,i)=>`<option value="${i}" ${i==aSel.ti?'selected':''}>${esc(x.name)}</option>`).join('')}</select>
+ <label class="mut">Term name</label><input value="${esc(t.name)}" onchange="S.terms[${aSel.ti}].name=this.value;save();render()">
+ <button class="btn red sm" onclick="delTerm()">Delete this term</button> <button class="btn alt sm" onclick="addTerm()">+ Add term</button></div>
  <div class="card"><h3>Subjects in ${esc(t.name)}</h3>
  ${t.subjects.map((s,i)=>`<div class="row" style="margin:5px 0"><input value="${esc(s.name)}" oninput="find(${aSel.ti},${i}).name=this.value;saveSoon()"><button class="btn red sm" onclick="delSub(${i})">Delete</button></div>`).join('')}
- <button class="btn alt" onclick="addSub()">+ Add subject</button> <button class="btn alt" onclick="addTerm()">+ Add term</button></div>`;
+ <button class="btn alt" onclick="addSub()">+ Add subject</button></div>`;
  return h.replace('<button class="lnk" onclick="admin=false',extra+'<button class="lnk" onclick="admin=false')};
 function addSub(){const n=prompt('Subject name?');if(!n)return;S.terms[aSel.ti].subjects.push(mk(n));save();render()}
 function delSub(i){if(S.terms[aSel.ti].subjects.length<2||!confirm('Delete this subject and all its exams?'))return;S.terms[aSel.ti].subjects.splice(i,1);aSel={ti:aSel.ti,si:0,ex:null};save();render()}
+function delTerm(){if(S.terms.length<2){alert('You need at least one term.');return}
+ if(!confirm('Delete "'+S.terms[aSel.ti].name+'" with all its subjects, exams and lectures? This cannot be undone.'))return;
+ S.terms.splice(aSel.ti,1);aSel={ti:0,si:0,ex:null};lSel={ti:0,si:0};homeTerm=0;save();render()}
 function addTerm(){const n=prompt('Term name?');if(!n)return;S.terms.push({name:n,subjects:[mk('New subject')]});save();render()}
 /* ===== ROUND 3: richer home, courses, lectures ===== */
 const lecs=sid=>((S.lec=S.lec||{})[sid]=S.lec[sid]||[]);
