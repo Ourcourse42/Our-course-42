@@ -65,6 +65,7 @@ textarea{min-height:60px}
 .expl{margin-top:8px;padding:10px 12px;border-left:4px solid var(--ac);background:var(--ac2);border-radius:6px;font-size:.92rem}
 textarea.ag{overflow:hidden;resize:none;min-height:42px;line-height:1.45}
 .qc{border-left:4px solid var(--ac)}.opt-r{display:flex;gap:8px;align-items:flex-start;margin:4px 0}.opt-r input[type=radio]{width:auto;margin-top:12px}.opt-r b{margin-top:10px;width:18px}
+.fl{display:block;font-weight:700;margin:12px 0 2px;font-size:.92rem}.pv{max-width:240px;border-radius:10px;overflow:hidden;margin:8px 0}.hint{background:var(--ac2);border-radius:10px;padding:10px 12px;font-size:.92rem;margin:8px 0}
 </style></head><body>
 <div class="wrap" id="app"></div>
 <script>
@@ -134,7 +135,7 @@ function startExam(ti,si,id){const e=find(ti,si).exams.find(x=>x.id===id);
  if(!e.qs.length){alert('This exam has no questions yet.');return}
  exam={ti,si,id,e,ans:{},end:Date.now()+e.min*60000,done:false};go(`exam/${ti}/${si}/${id}`)}
 function pExam(ti,si,id){
- if(!exam||exam.id!==id){const e=find(ti,si)?.exams.find(x=>x.id===id);if(!e)return '<div class="card">Exam not found.</div>';
+ if(!exam||exam.id!==id){const e=find(ti,si)?.exams.find(x=>x.id===id);if(!e||(!vis(e)&&!admin))return '<div class="card">Exam not found.</div>';
   exam={ti,si,id,e,ans:{},end:Date.now()+e.min*60000,done:false}}
  const E=exam.e;
  if(exam.done){const wrong=E.qs.filter((q,i)=>exam.ans[i]!==q.a).length,right=E.qs.length-wrong;
@@ -165,7 +166,7 @@ function pAdmin(){
  <label class="mut">Quotes (one per line)</label><textarea style="min-height:110px" oninput="S.cd.quotes=this.value.split('\\n').filter(x=>x.trim());saveSoon()">${esc(S.cd.quotes.join('\n'))}</textarea></div>
  <div class="card"><h3>Exams</h3>
  <select onchange="const v=this.value.split('-');aSel={ti:+v[0],si:+v[1],ex:null};render()">${S.terms.map((t,ti)=>t.subjects.map((s,si)=>`<option value="${ti}-${si}" ${ti==aSel.ti&&si==aSel.si?'selected':''}>${esc(t.name)} \u2014 ${esc(s.name)}</option>`).join('')).join('')}</select>
- ${sub.exams.map(e=>`<div class="row" style="margin:6px 0"><span style="flex:1">${esc(e.title)} <span class="mut">(${e.qs.length} q)</span></span><button class="btn alt sm" onclick="go('examedit/${aSel.ti}/${aSel.si}/${e.id}')">Edit questions</button><button class="btn red sm" onclick="delExam('${e.id}')">Delete</button></div>`).join('')||'<p class="mut">No exams yet.</p>'}
+ ${sub.exams.map(e=>`<div class="row" style="margin:6px 0"><span style="flex:1">${esc(e.title)} <span class="mut">(${e.qs.length} q)</span> ${e.pub===false?'<span class="pill">Draft</span>':'<span class="badge">Live</span>'}</span><button class="btn alt sm" onclick="go('examedit/${aSel.ti}/${aSel.si}/${e.id}')">Edit questions</button><button class="btn red sm" onclick="delExam('${e.id}')">Delete</button></div>`).join('')||'<p class="mut">No exams yet.</p>'}
  <button class="btn" onclick="addExam()">+ Add exam</button></div>
  
  <button class="lnk" onclick="admin=false;sb&&sb.auth.signOut();go('')">Log out</button>`}
@@ -178,7 +179,7 @@ function editor(ex){return `<div class="card"><h3>Editing: ${esc(ex.title)}</h3>
  <div class="mut">Select the circle next to the correct answer.</div></div>`).join('')}
  <button class="btn alt" onclick="addQ()">+ Add question</button></div>`}
 const cur=()=>find(aSel.ti,aSel.si).exams.find(e=>e.id===aSel.ex);
-function addExam(){const t=prompt('Exam title?');if(!t)return;const e={id:uid(),title:t,min:30,qs:[]};find(aSel.ti,aSel.si).exams.push(e);aSel.ex=e.id;save();go('examedit/'+aSel.ti+'/'+aSel.si+'/'+e.id)}
+function addExam(){const t=prompt('Exam title?');if(!t)return;const e={id:uid(),title:t,min:30,qs:[],pub:false};find(aSel.ti,aSel.si).exams.push(e);aSel.ex=e.id;save();go('examedit/'+aSel.ti+'/'+aSel.si+'/'+e.id)}
 function delExam(id){if(!confirm('Delete this exam?'))return;const s=find(aSel.ti,aSel.si);s.exams=s.exams.filter(e=>e.id!==id);if(aSel.ex===id)aSel.ex=null;save();render()}
 function addQ(){cur().qs.push({q:'',o:['','','',''],a:0});save();render()}
 function delQ(i){cur().qs.splice(i,1);save();render()}
@@ -187,7 +188,7 @@ async function login(){if(!sb){alert('Supabase is not configured yet.');return}c
 /* ===== ENRICHMENTS ===== */
 const hist=()=>{try{return JSON.parse(localStorage.getItem('oc42')||'{}')}catch(e){return{}}};
 const setHist=h=>{try{localStorage.setItem('oc42',JSON.stringify(h))}catch(e){}};
-const allEx=()=>S.terms.flatMap((t,ti)=>t.subjects.flatMap((s,si)=>s.exams.map(e=>({e,ti,si,s,t}))));
+const allEx=()=>S.terms.flatMap((t,ti)=>t.subjects.flatMap((s,si)=>s.exams.filter(vis).map(e=>({e,ti,si,s,t}))));
 const _home=pHome;
 pHome=function(){
  const A=allEx(),H=hist(),n=Object.keys(H).length,nq=A.reduce((a,x)=>a+x.e.qs.length,0);
@@ -199,18 +200,18 @@ pHome=function(){
  <input placeholder="\ud83d\udd0d Search exams\u2026" oninput="srch(this.value)"><div id="sr"></div>`+_home()};
 function srch(v){v=v.trim().toLowerCase();const H=hist();
  document.getElementById('sr').innerHTML=v?allEx().filter(x=>(x.e.title+x.s.name).toLowerCase().includes(v)).map(x=>`<div class="card subj" onclick="startExam(${x.ti},${x.si},'${x.e.id}')"><div><b>${esc(x.e.title)}</b><div class="mut">${esc(x.s.name)}</div></div><span class="btn sm">Start</span></div>`).join('')||'<p class="mut">Nothing found.</p>':''}
-pSubject=function(ti,si){const s=find(ti,si),H=hist();
+pSubject=function(ti,si){const s0=find(ti,si),H=hist(),s={...s0,exams:V(s0)};
  return `<button class="lnk" onclick="go('')">\u2190 Home</button><h2>${esc(s.name)}</h2>
  ${s.exams.length?`<button class="btn alt" onclick="startMix(${ti},${si})">\ud83c\udfb2 Random mixed quiz (10 questions)</button>`:''}
  ${s.exams.length?s.exams.map(e=>{const h=H[e.id];return `<div class="card subj" onclick="startExam(${ti},${si},'${e.id}')"><div><h3 style="margin:0">${esc(e.title)}</h3><span class="mut">${e.qs.length} questions \u00b7 ${e.min} min${h?` \u00b7 ${h.n} attempt${h.n>1?'s':''}`:''}</span></div>${h?`<span class="badge">Best ${h.best}%</span>`:'<span class="btn sm">Start</span>'}</div>`}).join(''):'<div class="card mut">No exams here yet. Check back soon.</div>'}`};
 startExam=function(ti,si,id){const e=find(ti,si).exams.find(x=>x.id===id);
  if(!e.qs.length){alert('This exam has no questions yet.');return}
  exam={ti,si,id,e,ans:{},flag:{},cur:0,filt:'all',end:Date.now()+e.min*60000,done:false};go(`exam/${ti}/${si}/${id}`)};
-function startMix(ti,si){const qs=find(ti,si).exams.flatMap(e=>e.qs).filter(q=>q.q).sort(()=>Math.random()-.5).slice(0,10);
+function startMix(ti,si){const qs=V(find(ti,si)).flatMap(e=>e.qs).filter(q=>q.q).sort(()=>Math.random()-.5).slice(0,10);
  if(!qs.length){alert('No questions yet.');return}
  exam={ti,si,id:'mix'+ti+si,e:{id:'mix'+ti+si,title:'Mixed quiz \u2014 '+find(ti,si).name,min:qs.length*1.5,qs},ans:{},flag:{},cur:0,filt:'all',end:Date.now()+qs.length*90000,done:false};go(`exam/${ti}/${si}/${exam.id}`)}
 pExam=function(ti,si,id){
- if(!exam||exam.id!==id){const e=find(ti,si)?.exams.find(x=>x.id===id);if(!e)return '<div class="card">Exam not found.</div>';
+ if(!exam||exam.id!==id){const e=find(ti,si)?.exams.find(x=>x.id===id);if(!e||(!vis(e)&&!admin))return '<div class="card">Exam not found.</div>';
   exam={ti,si,id,e,ans:{},flag:{},cur:0,filt:'all',end:Date.now()+e.min*60000,done:false}}
  const E=exam.e,N=E.qs.length;
  if(exam.done){const W=E.qs.map((q,i)=>exam.ans[i]!==q.a),wrong=W.filter(Boolean).length,right=N-wrong,pct=Math.round(right/N*100);
@@ -279,6 +280,7 @@ head=function(){const r=route()[0];const l=(p,t)=>`<button class="lnk" style="${
 const _home2=pHome;
 pHome=function(){const r=route();
  if(r[0]==='examedit')return pEE(+r[1],+r[2],r[3]);
+ if(r[0]==='lecedit')return pLA(+r[1],+r[2]);
  if(r[0]==='courses')return r[1]!==undefined?pLec(+r[1],+r[2]):pCourses();
  const A=allEx(),H=hist(),n=Object.keys(H).length,nq=A.reduce((a,x)=>a+x.e.qs.length,0);
  const avg=n?Math.round(Object.values(H).reduce((a,x)=>a+x.pct,0)/n):0,hr=new Date().getHours();
@@ -289,26 +291,20 @@ pHome=function(){const r=route();
  <p class="mut" style="margin:10px 4px;font-style:italic">\u201c${esc(q)}\u201d</p>
  <div class="stats"><div class="stat"><b>${A.length}</b>Exams</div><div class="stat"><b>${nq}</b>Questions</div><div class="stat"><b>${n}</b>You took</div><div class="stat"><b>${avg}%</b>Your avg</div></div>
  <input placeholder="\ud83d\udd0d Search exams\u2026" oninput="srch(this.value)"><div id="sr"></div>
- ${S.terms.map((t,ti)=>`<h2 style="margin-top:22px">${esc(t.name)}</h2><div class="grid">${t.subjects.map((s,si)=>`<div class="card sc" onclick="go('subject/${ti}/${si}')"><div class="ico">${esc(s.name[0])}</div><h3>${esc(s.name)}</h3><span class="pill">${s.exams.length} exam${s.exams.length==1?'':'s'}</span><div class="mut" style="margin-top:6px">${s.exams.reduce((a,e)=>a+e.qs.length,0)} questions</div></div>`).join('')}</div>`).join('')}
+ ${S.terms.map((t,ti)=>`<h2 style="margin-top:22px">${esc(t.name)}</h2><div class="grid">${t.subjects.map((s,si)=>`<div class="card sc" onclick="go('subject/${ti}/${si}')"><div class="ico">${esc(s.name[0])}</div><h3>${esc(s.name)}</h3><span class="pill">${V(s).length} exam${V(s).length==1?'':'s'}</span><div class="mut" style="margin-top:6px">${V(s).reduce((a,e)=>a+e.qs.length,0)} questions</div></div>`).join('')}</div>`).join('')}
  <div class="card subj" style="margin-top:20px" onclick="go('courses')"><div><h3 style="margin:0">\ud83c\udf93 Courses &amp; lectures</h3><span class="mut">Video lectures for every subject</span></div><span class="btn sm">Open</span></div>`};
 function pCourses(){return `<h2>Courses</h2><p class="mut">Choose a subject to watch its lectures.</p>
  ${S.terms.map((t,ti)=>`<h3 style="margin-top:18px">${esc(t.name)}</h3><div class="grid">${t.subjects.map((s,si)=>`<div class="card sc" onclick="go('courses/${ti}/${si}')"><div class="ico">${esc(s.name[0])}</div><h3>${esc(s.name)}</h3><span class="pill">${lecs(s.id).length} lecture${lecs(s.id).length==1?'':'s'}</span></div>`).join('')}</div>`).join('')}`}
-function pLec(ti,si){const s=find(ti,si),L=lecs(s.id);
+function pLec(ti,si){const s=find(ti,si),L=lecs(s.id).filter(l=>l.url);
  return `<button class="lnk" onclick="go('courses')">\u2190 All courses</button><h2>${esc(s.name)}</h2>
- <div class="tabs"><button class="tab on">Lectures (${L.length})</button><button class="tab" onclick="go('subject/${ti}/${si}')">Exams (${s.exams.length})</button></div>
+ <div class="tabs"><button class="tab on">Lectures (${L.length})</button><button class="tab" onclick="go('subject/${ti}/${si}')">Exams (${V(s).length})</button></div>
  ${L.length?`<div class="grid">${L.map((l,i)=>`<a class="card vid" href="${esc(safe(l.url))}" target="_blank" rel="noopener">${thumb(l)}<div class="vt"><span class="mut">Lecture ${i+1}</span><b>${esc(l.title)}</b></div></a>`).join('')}</div>`:'<div class="card mut">No lectures added yet.</div>'}`}
 const _cd=pCountdown;
 pCountdown=function(){return `<div class="cc">${_cd().replace('<button class="btn alt"','<br><button class="btn alt"')}</div>`};
 let lSel={ti:0,si:0};
 const _adm2=pAdmin;
 pAdmin=function(){const h=_adm2();if(!admin)return h;const s=find(lSel.ti,lSel.si),L=lecs(s.id);
- const x=`<div class="card"><h3>Lectures</h3>
- <select onchange="const v=this.value.split('-');lSel={ti:+v[0],si:+v[1]};render()">${S.terms.map((t,ti)=>t.subjects.map((u,si)=>`<option value="${ti}-${si}" ${ti==lSel.ti&&si==lSel.si?'selected':''}>${esc(t.name)} \u2014 ${esc(u.name)}</option>`).join('')).join('')}</select>
- ${L.map((l,i)=>`<div class="card"><div class="row">${thumb(l).replace('class="th"','class="th" style="width:90px"')}<div style="flex:1"><input placeholder="Title" value="${esc(l.title)}" oninput="lecs('${s.id}')[${i}].title=this.value;saveSoon()"><input placeholder="YouTube link" value="${esc(l.url)}" onchange="lecs('${s.id}')[${i}].url=this.value;save();render()"></div></div>
- <div class="row"><input placeholder="Custom preview image URL (optional)" value="${esc(l.img||'')}" onchange="lecs('${s.id}')[${i}].img=this.value;save();render()"><span style="flex:1"></span>
- <button class="btn alt sm" ${i?'':'disabled'} onclick="mvLec('${s.id}',${i},-1)">\u2191</button><button class="btn alt sm" onclick="mvLec('${s.id}',${i},1)">\u2193</button><button class="btn red sm" onclick="lecs('${s.id}').splice(${i},1);save();render()">Delete</button></div></div>`).join('')}
- <button class="btn" onclick="lecs('${s.id}').push({id:uid(),title:'New lecture',url:'',img:''});save();render()">+ Add lecture</button>
- <p class="mut">The preview is pulled from YouTube automatically. If it doesn't load, paste a direct image URL.</p></div>`;
+ const x=`<div class="card"><h3>Lectures</h3><p class="mut">Add YouTube lectures to every subject in each term on a dedicated page.</p><button class="btn" onclick="go('lecedit/0/0')">Manage lectures \u2192</button></div>`;
  return h.replace('<button class="lnk" onclick="admin=false',x+'<button class="lnk" onclick="admin=false')};
 function mvLec(sid,i,d){const L=lecs(sid),j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];save();render()}
 
@@ -332,6 +328,39 @@ editor=function(ex){return `<div class="card"><label class="mut">Exam title</lab
  <div class="card"><h3>Bulk import</h3><p class="mut">One question per line: Question | A | B | C | D | correct letter | explanation (optional)</p>
  <textarea class="ag" rows="5" id="bulk"></textarea><button class="btn" onclick="bulk()">Import into this exam</button></div>
  <button class="btn" onclick="go('admin')">Done</button>`};
+
+/* ===== ROUND 5: publish workflow + lecture admin page ===== */
+const vis=e=>e.pub!==false;
+const V=s=>s.exams.filter(vis);
+const statCard=ex=>`<div class="card" style="border-left:5px solid ${ex.pub===false?'var(--bad)':'var(--ok)'}"><b>${ex.pub===false?'\u270f\ufe0f Draft \u2014 students cannot see this exam yet':'\u2705 Published \u2014 students can see this exam'}</b>
+ <div class="row" style="margin-top:10px;flex-wrap:wrap">${ex.pub===false?`<button class="btn" onclick="pubExam()">\ud83d\ude80 Publish exam (send to students)</button>`:`<button class="btn alt" onclick="unpub()">Move back to draft</button>`}<button class="btn alt" onclick="startExam(${aSel.ti},${aSel.si},'${ex.id}')">Preview as student</button></div></div>`;
+const _ed=editor;
+editor=function(ex){return statCard(ex)+_ed(ex)+(ex.pub===false?`<button class="btn" style="margin-top:10px" onclick="pubExam()">\ud83d\ude80 Publish exam (send to students)</button>`:'')};
+function pubExam(){const ex=cur(),bad=[];if(!ex.qs.length)bad.push('Add at least one question');
+ ex.qs.forEach((q,i)=>{if(!q.q.trim())bad.push('Q'+(i+1)+': the question text is empty');if(q.o.some(o=>!o.trim()))bad.push('Q'+(i+1)+': fill all four answers')});
+ if(bad.length){alert('Cannot publish yet:\n'+bad.slice(0,8).join('\n'));return}
+ if(!confirm('Publish this exam? Students will see it immediately.'))return;
+ ex.pub=true;save();render();scrollTo(0,0)}
+function unpub(){if(!confirm('Hide this exam from students again?'))return;cur().pub=false;save();render()}
+function pv(sid,i){const e=document.getElementById('pv'+i);if(e)e.innerHTML=thumb(lecs(sid)[i])}
+function pLA(ti,si){
+ if(!admin)return '<div class="card">Please log in from the <a class="lnk" onclick="go(\'admin\')">Admin page</a> first.</div>';
+ if(!S.terms[ti])ti=0;if(!find(ti,si))si=0;
+ const s=find(ti,si),L=lecs(s.id),sid=s.id;
+ return `<button class="lnk" onclick="go('admin')">\u2190 Back to dashboard</button><h2>Manage lectures</h2>
+ <div class="hint"><b>Step 1</b> choose the term \u00b7 <b>Step 2</b> choose the subject \u00b7 <b>Step 3</b> add lectures, then fill the title and paste the YouTube link in the labelled boxes. Everything saves automatically.</div>
+ <div class="mut">Term</div><div class="tabs">${S.terms.map((t,i)=>`<button class="tab ${i==ti?'on':''}" onclick="go('lecedit/${i}/0')">${esc(t.name)}</button>`).join('')}</div>
+ <div class="mut">Subject</div><div class="tabs" style="flex-wrap:wrap">${S.terms[ti].subjects.map((u,i)=>`<button class="tab ${i==si?'on':''}" onclick="go('lecedit/${ti}/${i}')">${esc(u.name)} (${lecs(u.id).length})</button>`).join('')}</div>
+ <h3 style="margin-top:16px">${esc(s.name)} \u2014 lectures</h3>
+ <button class="btn" onclick="lecs('${sid}').push({id:uid(),title:'',url:'',img:''});save();render()">+ Add lecture</button>
+ ${L.map((l,i)=>`<div class="card qc"><div class="row"><b>Lecture ${i+1}</b><span style="flex:1"></span>
+ <button class="btn alt sm" ${i?'':'disabled'} onclick="mvLec('${sid}',${i},-1)">\u2191</button><button class="btn alt sm" onclick="mvLec('${sid}',${i},1)">\u2193</button>
+ <button class="btn red sm" onclick="if(confirm('Delete this lecture?')){lecs('${sid}').splice(${i},1);save();render()}">Delete</button></div>
+ <label class="fl">\ud83d\udcdd Lecture title (write here)</label><textarea class="ag" rows="1" placeholder="e.g. Acute pancreatitis \u2014 part 1" oninput="ag(this);lecs('${sid}')[${i}].title=this.value;saveSoon()">${esc(l.title)}</textarea>
+ <label class="fl">\ud83d\udd17 YouTube link (paste here)</label><textarea class="ag" rows="1" placeholder="https://www.youtube.com/watch?v=..." oninput="ag(this);lecs('${sid}')[${i}].url=this.value.trim();saveSoon()" onchange="save();pv('${sid}',${i})">${esc(l.url)}</textarea>
+ <label class="fl">\ud83d\uddbc\ufe0f Preview image link (optional)</label><textarea class="ag" rows="1" placeholder="Leave empty to use the YouTube preview" oninput="ag(this);lecs('${sid}')[${i}].img=this.value.trim();saveSoon()" onchange="save();pv('${sid}',${i})">${esc(l.img||'')}</textarea>
+ <div class="mut">Preview:</div><div class="pv" id="pv${i}">${thumb(l)}</div></div>`).join('')||'<div class="card mut">No lectures yet. Tap "+ Add lecture".</div>'}
+ ${L.length?`<button class="btn" onclick="lecs('${sid}').push({id:uid(),title:'',url:'',img:''});save();render()">+ Add another lecture</button>`:''}`}
 render();
 (async()=>{try{
  if(!window.supabase||SUPABASE_URL.startsWith('YOUR'))return;
