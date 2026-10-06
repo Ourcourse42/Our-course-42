@@ -203,9 +203,9 @@ function srch(v){v=v.trim().toLowerCase();const H=hist();
  document.getElementById('sr').innerHTML=v?allEx().filter(x=>(x.e.title+x.s.name).toLowerCase().includes(v)).map(x=>`<div class="card subj" onclick="startExam(${x.ti},${x.si},'${x.e.id}')"><div><b>${esc(x.e.title)}</b><div class="mut">${esc(x.s.name)}</div></div><span class="btn sm">Start</span></div>`).join('')||'<p class="mut">Nothing found.</p>':''}
 pSubject=function(ti,si){const s0=find(ti,si),H=hist(),s={...s0,exams:V(s0)};
  return `<button class="lnk" onclick="go('')">\u2190 Home</button><h2>${esc(s.name)}</h2>
- ${s.exams.length?`<button class="btn alt" onclick="startMix(${ti},${si})">\ud83c\udfb2 Random mixed quiz (10 questions)</button>`:''}
+ ${s.exams.length?`<button class="btn" onclick="startAll(${ti},${si})">\ud83d\udd00 Shuffled exam: all ${s.exams.reduce((a,e)=>a+e.qs.filter(q=>q.q).length,0)} questions</button> <button class="btn alt" onclick="startMix(${ti},${si})">\ud83c\udfb2 Random mixed quiz (10 questions)</button>`:''}
  ${s.exams.length?s.exams.map(e=>{const h=H[e.id];return `<div class="card subj" onclick="startExam(${ti},${si},'${e.id}')"><div><h3 style="margin:0">${esc(e.title)}</h3><span class="mut">${e.qs.length} questions \u00b7 ${e.min} min${h?` \u00b7 ${h.n} attempt${h.n>1?'s':''}`:''}</span></div>${h?`<span class="badge">Best ${h.best}%</span>`:'<span class="btn sm">Start</span>'}</div>`}).join(''):'<div class="card mut">No exams here yet. Check back soon.</div>'}`};
-startExam=function(ti,si,id){const e=find(ti,si).exams.find(x=>x.id===id);
+startExam=function(ti,si,id){if(/^mix\d+$/.test(id))return startMix(ti,si);if(/^all\d+$/.test(id))return startAll(ti,si);const e=find(ti,si).exams.find(x=>x.id===id);
  if(!e.qs.length){alert('This exam has no questions yet.');return}
  exam={ti,si,id,e,ans:{},flag:{},cur:0,filt:'all',end:Date.now()+e.min*60000,done:false};go(`exam/${ti}/${si}/${id}`)};
 function startMix(ti,si){const qs=V(find(ti,si)).flatMap(e=>e.qs).filter(q=>q.q).sort(()=>Math.random()-.5).slice(0,10);
@@ -378,6 +378,15 @@ function bulk(){const r=parseBulk(document.getElementById('bulk').value);
  r.out.forEach(q=>cur().qs.push(q));
  alert(r.out.length+' question(s) imported'+(r.bad.length?'.\nSkipped line(s) '+r.bad.join(', ')+' (check the format).':''));
  save();render()}
+
+/* ===== ROUND 7: shuffled exam of every question in a subject ===== */
+function startAll(ti,si){
+ const qs=V(find(ti,si)).flatMap(e=>e.qs).filter(q=>q.q&&q.o.length>1);
+ for(let i=qs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[qs[i],qs[j]]=[qs[j],qs[i]]}
+ if(!qs.length){alert('No questions yet.');return}
+ const id='all'+ti+si,min=Math.ceil(qs.length*1.2);
+ exam={ti,si,id,e:{id,title:'Shuffled exam \u2014 '+find(ti,si).name,min,qs},ans:{},flag:{},cur:0,filt:'all',end:Date.now()+min*60000,done:false};
+ go(`exam/${ti}/${si}/${id}`)}
 render();
 (async()=>{try{
  if(!window.supabase||SUPABASE_URL.startsWith('YOUR'))return;
