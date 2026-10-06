@@ -176,7 +176,8 @@ function editor(ex){return `<div class="card"><h3>Editing: ${esc(ex.title)}</h3>
  ${ex.qs.map((q,i)=>`<div class="card"><div class="row"><b>Q${i+1}</b><span style="flex:1"></span><button class="btn red sm" onclick="delQ(${i})">Remove</button></div>
  <textarea oninput="cur().qs[${i}].q=this.value;saveSoon()">${esc(q.q)}</textarea>
  ${q.o.map((o,j)=>`<div class="row"><input type="radio" name="r${i}" ${q.a===j?'checked':''} onchange="cur().qs[${i}].a=${j};save()"><input value="${esc(o)}" oninput="cur().qs[${i}].o[${j}]=this.value;saveSoon()"></div>`).join('')}
- <div class="mut">Select the circle next to the correct answer.</div></div>`).join('')}
+ <div class="mut">Select the circle next to the correct answer.</div>
+ ${q.o.length<5?`<button class="btn alt sm" onclick="addOpt(${i})">+ Add 5th choice</button>`:`<button class="btn alt sm" onclick="rmOpt(${i})">Remove 5th choice</button>`}</div>`).join('')}
  <button class="btn alt" onclick="addQ()">+ Add question</button></div>`}
 const cur=()=>find(aSel.ti,aSel.si).exams.find(e=>e.id===aSel.ex);
 function addExam(){const t=prompt('Exam title?');if(!t)return;const e={id:uid(),title:t,min:30,qs:[],pub:false};find(aSel.ti,aSel.si).exams.push(e);aSel.ex=e.id;save();go('examedit/'+aSel.ti+'/'+aSel.si+'/'+e.id)}
@@ -225,7 +226,7 @@ pExam=function(ti,si,id){
  return `<div class="timer"><span>${esc(E.title)}</span><span id="tm">--:--</span></div>
  <div class="mut">${an} of ${N} answered</div><div class="bar"><i style="width:${an/N*100}%"></i></div>
  <div class="card"><div class="mut">Question ${i+1} of ${N}</div><h3 style="margin-top:6px">${esc(q.q)}</h3>
- ${q.o.map((o,j)=>`<button class="opt ${exam.ans[i]===j?'sel':''}" onclick="pick(${i},${j})"><b>${'ABCD'[j]}.</b> ${esc(o)}</button>`).join('')}
+ ${q.o.map((o,j)=>`<button class="opt ${exam.ans[i]===j?'sel':''}" onclick="pick(${i},${j})"><b>${'ABCDE'[j]}.</b> ${esc(o)}</button>`).join('')}
  <button class="lnk" onclick="exam.flag[${i}]=!exam.flag[${i}];render()">${exam.flag[i]?'\ud83d\udea9 Unflag':'\ud83c\udff3\ufe0f Flag for review'}</button></div>
  <div class="row"><button class="btn alt" ${i?'':'disabled style="opacity:.4"'} onclick="exam.cur--;render()">\u2190 Prev</button><span style="flex:1"></span>
  ${i<N-1?`<button class="btn" onclick="exam.cur++;render()">Next \u2192</button>`:`<button class="btn" onclick="finish()">Submit</button>`}</div>
@@ -243,13 +244,11 @@ editor=function(ex){return `<div class="card"><h3>Editing: ${esc(ex.title)}</h3>
  <textarea oninput="cur().qs[${i}].q=this.value;saveSoon()">${esc(q.q)}</textarea>
  ${q.o.map((o,j)=>`<div class="row"><input type="radio" name="r${i}" ${q.a===j?'checked':''} onchange="cur().qs[${i}].a=${j};save()"><input value="${esc(o)}" oninput="cur().qs[${i}].o[${j}]=this.value;saveSoon()"></div>`).join('')}
  <div class="mut">Select the circle next to the correct answer.</div>
+ ${q.o.length<5?`<button class="btn alt sm" onclick="addOpt(${i})">+ Add 5th choice</button>`:`<button class="btn alt sm" onclick="rmOpt(${i})">Remove 5th choice</button>`}
  <label class="mut">Explanation (shown after the exam)</label><textarea oninput="cur().qs[${i}].x=this.value;saveSoon()">${esc(q.x||'')}</textarea></div>`).join('')}
  <button class="btn alt" onclick="addQ()">+ Add question</button></div>
- <div class="card"><h3>Bulk import</h3><p class="mut">One question per line: Question | A | B | C | D | correct letter | explanation (optional)</p>
+ <div class="card"><h3>Bulk import</h3><p class="mut">One question per line, with 4 or 5 choices: Question | A | B | C | D | E (optional) | correct letter | explanation (optional)</p>
  <textarea id="bulk" style="min-height:120px"></textarea><button class="btn" onclick="bulk()">Import into this exam</button></div>`};
-function bulk(){const L=document.getElementById('bulk').value.split('\n').map(l=>l.split('|').map(x=>x.trim())).filter(p=>p.length>=6&&p[0]);
- L.forEach(p=>cur().qs.push({q:p[0],o:p.slice(1,5),a:Math.max(0,'ABCD'.indexOf(p[5].toUpperCase())),x:p[6]||''}));
- alert(L.length+' question(s) imported');save();render()}
 const _adm=pAdmin;
 pAdmin=function(){const h=_adm();if(!admin)return h;
  const t=S.terms[aSel.ti];
@@ -321,11 +320,12 @@ editor=function(ex){return `<div class="card"><label class="mut">Exam title</lab
  <button class="btn alt" onclick="addQ()">+ Add question</button>
  ${ex.qs.map((q,i)=>`<div class="card qc"><div class="row"><b>Question ${i+1}</b><span style="flex:1"></span><button class="btn red sm" onclick="delQ(${i})">Remove</button></div>
  <textarea class="ag" rows="2" placeholder="Question text" oninput="ag(this);cur().qs[${i}].q=this.value;saveSoon()">${esc(q.q)}</textarea>
- ${q.o.map((o,j)=>`<div class="opt-r"><input type="radio" name="r${i}" ${q.a===j?'checked':''} onchange="cur().qs[${i}].a=${j};save()"><b>${'ABCD'[j]}</b><textarea class="ag" rows="1" placeholder="Answer ${'ABCD'[j]}" oninput="ag(this);cur().qs[${i}].o[${j}]=this.value;saveSoon()">${esc(o)}</textarea></div>`).join('')}
+ ${q.o.map((o,j)=>`<div class="opt-r"><input type="radio" name="r${i}" ${q.a===j?'checked':''} onchange="cur().qs[${i}].a=${j};save()"><b>${'ABCDE'[j]}</b><textarea class="ag" rows="1" placeholder="Answer ${'ABCDE'[j]}" oninput="ag(this);cur().qs[${i}].o[${j}]=this.value;saveSoon()">${esc(o)}</textarea></div>`).join('')}
  <div class="mut">Select the circle next to the correct answer.</div>
+ ${q.o.length<5?`<button class="btn alt sm" onclick="addOpt(${i})">+ Add 5th choice</button>`:`<button class="btn alt sm" onclick="rmOpt(${i})">Remove 5th choice</button>`}
  <label class="mut">Explanation (shown after the exam)</label><textarea class="ag" rows="2" oninput="ag(this);cur().qs[${i}].x=this.value;saveSoon()">${esc(q.x||'')}</textarea></div>`).join('')}
  <button class="btn alt" onclick="addQ()">+ Add question</button>
- <div class="card"><h3>Bulk import</h3><p class="mut">One question per line: Question | A | B | C | D | correct letter | explanation (optional)</p>
+ <div class="card"><h3>Bulk import</h3><p class="mut">One question per line, with 4 or 5 choices: Question | A | B | C | D | E (optional) | correct letter | explanation (optional)</p>
  <textarea class="ag" rows="5" id="bulk"></textarea><button class="btn" onclick="bulk()">Import into this exam</button></div>
  <button class="btn" onclick="go('admin')">Done</button>`};
 
@@ -337,7 +337,7 @@ const statCard=ex=>`<div class="card" style="border-left:5px solid ${ex.pub===fa
 const _ed=editor;
 editor=function(ex){return statCard(ex)+_ed(ex)+(ex.pub===false?`<button class="btn" style="margin-top:10px" onclick="pubExam()">\ud83d\ude80 Publish exam (send to students)</button>`:'')};
 function pubExam(){const ex=cur(),bad=[];if(!ex.qs.length)bad.push('Add at least one question');
- ex.qs.forEach((q,i)=>{if(!q.q.trim())bad.push('Q'+(i+1)+': the question text is empty');if(q.o.some(o=>!o.trim()))bad.push('Q'+(i+1)+': fill all four answers')});
+ ex.qs.forEach((q,i)=>{if(!q.q.trim())bad.push('Q'+(i+1)+': the question text is empty');if(q.o.some(o=>!o.trim()))bad.push('Q'+(i+1)+': fill in all the answers')});
  if(bad.length){alert('Cannot publish yet:\n'+bad.slice(0,8).join('\n'));return}
  if(!confirm('Publish this exam? Students will see it immediately.'))return;
  ex.pub=true;save();render();scrollTo(0,0)}
@@ -361,6 +361,23 @@ function pLA(ti,si){
  <label class="fl">\ud83d\uddbc\ufe0f Preview image link (optional)</label><textarea class="ag" rows="1" placeholder="Leave empty to use the YouTube preview" oninput="ag(this);lecs('${sid}')[${i}].img=this.value.trim();saveSoon()" onchange="save();pv('${sid}',${i})">${esc(l.img||'')}</textarea>
  <div class="mut">Preview:</div><div class="pv" id="pv${i}">${thumb(l)}</div></div>`).join('')||'<div class="card mut">No lectures yet. Tap "+ Add lecture".</div>'}
  ${L.length?`<button class="btn" onclick="lecs('${sid}').push({id:uid(),title:'',url:'',img:''});save();render()">+ Add another lecture</button>`:''}`}
+
+/* ===== ROUND 6: optional 5th choice + flexible bulk import ===== */
+function addOpt(i){cur().qs[i].o.push('');save();render()}
+function rmOpt(i){const q=cur().qs[i];if(q.o[4]&&q.o[4].trim()&&!confirm('Remove the 5th choice and its text?'))return;if(q.a>=4)q.a=0;q.o.pop();save();render()}
+function parseBulk(text){const out=[],bad=[];
+ text.split('\n').map(l=>l.trim()).filter(Boolean).forEach((line,n)=>{
+  const p=line.split('|').map(x=>x.trim());let k=-1;
+  for(const i of [6,5,4,3]){if(i<p.length&&/^\(?[A-Ea-e][.)]?$/.test(p[i])){k=i;break}}
+  if(k<0||!p[0]){bad.push(n+1);return}
+  const o=p.slice(1,k),a='ABCDE'.indexOf(p[k].replace(/[().]/g,'').toUpperCase());
+  if(o.length<2||o.length>5||a<0||a>=o.length){bad.push(n+1);return}
+  out.push({q:p[0],o,a,x:p.slice(k+1).join(' | ')})});
+ return{out,bad}}
+function bulk(){const r=parseBulk(document.getElementById('bulk').value);
+ r.out.forEach(q=>cur().qs.push(q));
+ alert(r.out.length+' question(s) imported'+(r.bad.length?'.\nSkipped line(s) '+r.bad.join(', ')+' (check the format).':''));
+ save();render()}
 render();
 (async()=>{try{
  if(!window.supabase||SUPABASE_URL.startsWith('YOUR'))return;
