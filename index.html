@@ -66,6 +66,7 @@ textarea{min-height:60px}
 textarea.ag{overflow:hidden;resize:none;min-height:42px;line-height:1.45}
 .qc{border-left:4px solid var(--ac)}.opt-r{display:flex;gap:8px;align-items:flex-start;margin:4px 0}.opt-r input[type=radio]{width:auto;margin-top:12px}.opt-r b{margin-top:10px;width:18px}
 .fl{display:block;font-weight:700;margin:12px 0 2px;font-size:.92rem}.pv{max-width:240px;border-radius:10px;overflow:hidden;margin:8px 0}.hint{background:var(--ac2);border-radius:10px;padding:10px 12px;font-size:.92rem;margin:8px 0}
+.yb{margin:8px 4px 0}.yb .bar{height:12px;margin:0 0 6px}.yb .mut{font-size:.85rem;text-align:center}.bar i{transition:width .6s}
 </style></head><body>
 <div class="wrap" id="app"></div>
 <script>
@@ -82,7 +83,7 @@ terms:[{name:'Term 1',subjects:[mk('Internal Medicine 3',[{id:uid(),title:'Sampl
 {name:'Term 2',subjects:[mk('Emergency Medicine'),mk('Surgery 4')]}]};
 let dbDoc=null,admin=false,view={},exam=null,timerId=null,qi=0;
 let sb=null;
-const save=()=>{if(!sb||!admin)return;sb.from('site_state').update({data:JSON.parse(JSON.stringify(S))}).eq('id',1).then(r=>{if(r.error){console.warn(r.error);alert('Save failed: '+r.error.message)}})};
+const save=()=>{cacheS();if(!sb||!admin)return;sb.from('site_state').update({data:JSON.parse(JSON.stringify(S))}).eq('id',1).then(r=>{if(r.error){console.warn(r.error);alert('Save failed: '+r.error.message)}})};
 let tt;const saveSoon=()=>{clearTimeout(tt);tt=setTimeout(save,600)};
 const find=(ti,si)=>S.terms[ti].subjects[si];
 
@@ -98,7 +99,9 @@ function parts(){let t=Math.max(0,days()),s=Math.floor(t/1000);return [Math.floo
 
 function render(){
  clearInterval(timerId);document.documentElement.dataset.theme=S.theme;
- const [p,a,b,c]=route();const A=document.getElementById('app');let h=head();
+ const [p,a,b,c]=route();const A=document.getElementById('app');
+ if(!ready){A.innerHTML='<div class="cc"><div class="logo">Our course <span>42</span></div><p class="mut">Loading\u2026</p></div>';return}
+ let h=head();
  if(p==='subject')h+=pSubject(+a,+b);
  else if(p==='exam')h+=pExam(+a,+b,c);
  else if(p==='countdown')h+=pCountdown();
@@ -108,7 +111,8 @@ function render(){
  if(p==='countdown'||!p)timerId=setInterval(tick,1000);
  if(p==='exam'&&exam&&!exam.done)timerId=setInterval(examTick,1000);
 }
-function tick(){const e=document.getElementById('cdm'),f=document.getElementById('cdf');const [d,h,m,s]=parts();
+function tick(){const yf=document.getElementById('ybf');if(yf){const p=yp();yf.style.width=p+'%';document.getElementById('ybt').textContent=p.toFixed(1)+'% of the year has passed'}
+ const e=document.getElementById('cdm'),f=document.getElementById('cdf');const [d,h,m,s]=parts();
  if(e)e.textContent=d+' days';
  if(f)f.innerHTML=[['Days',d],['Hours',h],['Minutes',m],['Seconds',s]].map(x=>`<div class="unit"><b>${x[1]}</b>${x[0]}</div>`).join('')}
 
@@ -141,7 +145,7 @@ function pExam(ti,si,id){
  if(exam.done){const wrong=E.qs.filter((q,i)=>exam.ans[i]!==q.a).length,right=E.qs.length-wrong;
   return `<div class="card big"><h2>${esc(E.title)}</h2><div class="score">${right} / ${E.qs.length}</div>
   <p><b style="color:var(--bad)">${wrong}</b> wrong or unanswered \u00b7 <b style="color:var(--ok)">${right}</b> correct</p>
-  <button class="btn" onclick="startExam(${ti},${si},'${id}')">Retake</button> <button class="btn alt" onclick="go('subject/${ti}/${si}')">Back to exams</button></div>
+  <button class="btn" onclick="startExam(${ti},${si},'${id}',${exam.shuf?'true':'false'})">Retake</button> <button class="btn alt" onclick="go('subject/${ti}/${si}')">Back to exams</button></div>
   <h3>Review</h3>${E.qs.map((q,i)=>`<div class="card"><b>${i+1}. ${esc(q.q)}</b>${q.o.map((o,j)=>`<div class="opt ${j===q.a?'ok':(exam.ans[i]===j?'bad':'')}">${esc(o)}${j===q.a?' \u2713':''}${exam.ans[i]===j&&j!==q.a?' \u2717 your answer':''}</div>`).join('')}${exam.ans[i]===undefined?'<div class="mut">Not answered</div>':''}</div>`).join('')}`}
  return `<div class="timer"><span>${esc(E.title)}</span><span id="tm">--:--</span></div>
  ${E.qs.map((q,i)=>`<div class="card"><b>${i+1}. ${esc(q.q)}</b>${q.o.map((o,j)=>`<button class="opt ${exam.ans[i]===j?'sel':''}" onclick="pick(${i},${j})">${esc(o)}</button>`).join('')}</div>`).join('')}
@@ -204,10 +208,10 @@ function srch(v){v=v.trim().toLowerCase();const H=hist();
 pSubject=function(ti,si){const s0=find(ti,si),H=hist(),s={...s0,exams:V(s0)};
  return `<button class="lnk" onclick="go('')">\u2190 Home</button><h2>${esc(s.name)}</h2>
  ${s.exams.length?`<button class="btn" onclick="startAll(${ti},${si})">\ud83d\udd00 Shuffled exam: all ${s.exams.reduce((a,e)=>a+e.qs.filter(q=>q.q).length,0)} questions</button> <button class="btn alt" onclick="startMix(${ti},${si})">\ud83c\udfb2 Random mixed quiz (10 questions)</button>`:''}
- ${s.exams.length?s.exams.map(e=>{const h=H[e.id];return `<div class="card subj" onclick="startExam(${ti},${si},'${e.id}')"><div><h3 style="margin:0">${esc(e.title)}</h3><span class="mut">${e.qs.length} questions \u00b7 ${e.min} min${h?` \u00b7 ${h.n} attempt${h.n>1?'s':''}`:''}</span></div>${h?`<span class="badge">Best ${h.best}%</span>`:'<span class="btn sm">Start</span>'}</div>`}).join(''):'<div class="card mut">No exams here yet. Check back soon.</div>'}`};
-startExam=function(ti,si,id){if(/^mix\d+$/.test(id))return startMix(ti,si);if(/^all\d+$/.test(id))return startAll(ti,si);const e=find(ti,si).exams.find(x=>x.id===id);
+ ${s.exams.length?s.exams.map(e=>{const h=H[e.id];return `<div class="card subj" onclick="startExam(${ti},${si},'${e.id}')"><div><h3 style="margin:0">${esc(e.title)}</h3><span class="mut">${e.qs.length} questions \u00b7 ${e.min} min${h?` \u00b7 ${h.n} attempt${h.n>1?'s':''}`:''}</span></div><div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">${h?`<span class="badge">Best ${h.best}%</span>`:'<span class="btn sm">Start</span>'}<button class="btn alt sm" onclick="event.stopPropagation();startExam(${ti},${si},'${e.id}',true)">\ud83d\udd00 Shuffle</button></div></div>`}).join(''):'<div class="card mut">No exams here yet. Check back soon.</div>'}`};
+startExam=function(ti,si,id,shuf){if(/^mix\d+$/.test(id))return startMix(ti,si);if(/^all\d+$/.test(id))return startAll(ti,si);const e=find(ti,si).exams.find(x=>x.id===id);
  if(!e.qs.length){alert('This exam has no questions yet.');return}
- exam={ti,si,id,e,ans:{},flag:{},cur:0,filt:'all',end:Date.now()+e.min*60000,done:false};go(`exam/${ti}/${si}/${id}`)};
+ exam={ti,si,id,e:shuf?{...e,qs:shufArr(e.qs)}:e,shuf:!!shuf,ans:{},flag:{},cur:0,filt:'all',end:Date.now()+e.min*60000,done:false};go(`exam/${ti}/${si}/${id}`)};
 function startMix(ti,si){const qs=V(find(ti,si)).flatMap(e=>e.qs).filter(q=>q.q).sort(()=>Math.random()-.5).slice(0,10);
  if(!qs.length){alert('No questions yet.');return}
  exam={ti,si,id:'mix'+ti+si,e:{id:'mix'+ti+si,title:'Mixed quiz \u2014 '+find(ti,si).name,min:qs.length*1.5,qs},ans:{},flag:{},cur:0,filt:'all',end:Date.now()+qs.length*90000,done:false};go(`exam/${ti}/${si}/${exam.id}`)}
@@ -219,7 +223,7 @@ pExam=function(ti,si,id){
   const msg=pct>=85?'Outstanding work!':pct>=65?'Solid. A little more polish.':pct>=50?'You are getting there. Review below.':'Tough one. Every mistake below is a lesson.';
   return `<div class="card big"><h2>${esc(E.title)}</h2><div class="score">${right} / ${N}</div><div class="bar"><i style="width:${pct}%"></i></div>
   <p><b>${pct}%</b> \u2014 ${msg}</p><p><b style="color:var(--bad)">${wrong}</b> wrong or unanswered \u00b7 <b style="color:var(--ok)">${right}</b> correct</p>
-  <button class="btn" onclick="startExam(${ti},${si},'${id}')">Retake</button> <button class="btn alt" onclick="go('subject/${ti}/${si}')">Back to exams</button></div>
+  <button class="btn" onclick="startExam(${ti},${si},'${id}',${exam.shuf?'true':'false'})">Retake</button> <button class="btn alt" onclick="go('subject/${ti}/${si}')">Back to exams</button></div>
   <div class="tabs"><button class="tab ${exam.filt=='all'?'on':''}" onclick="exam.filt='all';render()">All (${N})</button><button class="tab ${exam.filt=='wrong'?'on':''}" onclick="exam.filt='wrong';render()">Wrong only (${wrong})</button></div>
   ${E.qs.map((q,i)=>W[i]||exam.filt=='all'?`<div class="card"><b>${i+1}. ${esc(q.q)}</b>${q.o.map((o,j)=>`<div class="opt ${j===q.a?'ok':(exam.ans[i]===j?'bad':'')}">${esc(o)}${j===q.a?' \u2713 correct':''}${exam.ans[i]===j&&j!==q.a?' \u2717 your answer':''}</div>`).join('')}${exam.ans[i]===undefined?'<div class="mut">Not answered</div>':''}${q.x?`<div class="expl">\ud83d\udca1 ${esc(q.x)}</div>`:''}</div>`:'').join('')}`}
  const i=exam.cur,q=E.qs[i],an=Object.keys(exam.ans).length;
@@ -387,13 +391,34 @@ function startAll(ti,si){
  const id='all'+ti+si,min=Math.ceil(qs.length*1.2);
  exam={ti,si,id,e:{id,title:'Shuffled exam \u2014 '+find(ti,si).name,min,qs},ans:{},flag:{},cur:0,filt:'all',end:Date.now()+min*60000,done:false};
  go(`exam/${ti}/${si}/${id}`)}
+
+/* ===== ROUND 8: shuffle within an exam + year-progress bar ===== */
+function shufArr(a){const r=a.slice();for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[r[i],r[j]]=[r[j],r[i]]}return r}
+function yp(){const end=new Date(S.cd.date+'T00:00:00'),st=new Date(end);st.setFullYear(end.getFullYear()-1);
+ const p=(Date.now()-st)/(end-st)*100;return isNaN(p)?0:Math.min(100,Math.max(0,p))}
+function yearBar(){const p=yp();return `<div class="yb"><div class="bar"><i id="ybf" style="width:${p}%"></i></div><div class="mut" id="ybt">${p.toFixed(1)}% of the year has passed</div></div>`}
+const _h8=pHome;
+pHome=function(){const h=_h8();return h.replace('<p class="mut" style="margin:10px 4px;font-style:italic">',()=>yearBar()+'<p class="mut" style="margin:10px 4px;font-style:italic">')};
+const _c8=pCountdown;
+pCountdown=function(){return _c8().replace('<p>'+esc(S.cd.details)+'</p>',()=>yearBar()+'<p>'+esc(S.cd.details)+'</p>')};
+let ready=false;
+function cacheS(){try{localStorage.setItem('oc42_cache',JSON.stringify(S))}catch(e){}}
+try{const c=JSON.parse(localStorage.getItem('oc42_cache')||'null');if(c&&c.terms){S=c;ready=true}}catch(e){}
 render();
-(async()=>{try{
- if(!window.supabase||SUPABASE_URL.startsWith('YOUR'))return;
- sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
- const ss=await sb.auth.getSession();if(ss.data&&ss.data.session)admin=true;
- const r=await sb.from('site_state').select('data').eq('id',1).single();
- if(r.data&&r.data.data&&r.data.data.terms)S=r.data.data;
- render();
-}catch(e){console.warn(e)}})();
+(async()=>{
+ const fin=()=>{if(!ready){ready=true;render()}};
+ try{
+  if(!window.supabase||SUPABASE_URL.startsWith('YOUR')){fin();return}
+  setTimeout(fin,6000);
+  sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  const ss=await sb.auth.getSession();if(ss.data&&ss.data.session)admin=true;
+  const r=await sb.from('site_state').select('data').eq('id',1).single();
+  if(r.data&&r.data.data&&r.data.data.terms){
+   const d=r.data.data,changed=JSON.stringify(d)!==JSON.stringify(S);S=d;cacheS();
+   const typing=/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName||'');
+   const inExam=route()[0]==='exam'&&exam&&!exam.done;
+   if(!ready){ready=true;render()}else if(changed&&!typing&&!inExam)render();
+  }else fin();
+ }catch(e){console.warn(e);fin()}
+})();
 </script></body></html>
