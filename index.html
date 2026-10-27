@@ -38,6 +38,7 @@ a.lnk,.lnk{color:var(--mut);cursor:pointer;font-size:.9rem;text-decoration:under
 .opt.sel{border-color:var(--ac);background:var(--ac2)}
 .opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,transparent)}
 .opt.bad{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 18%,transparent)}
+.opt:disabled{color:var(--ink);opacity:1;cursor:default}
 .timer{position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:8px 0;font-weight:700;display:flex;justify-content:space-between;z-index:2}
 input,textarea,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;margin:3px 0}
 textarea{min-height:60px}
@@ -226,17 +227,18 @@ pExam=function(ti,si,id){
   <button class="btn" onclick="startExam(${ti},${si},'${id}',${exam.shuf?'true':'false'})">Retake</button> <button class="btn alt" onclick="go('subject/${ti}/${si}')">Back to exams</button></div>
   <div class="tabs"><button class="tab ${exam.filt=='all'?'on':''}" onclick="exam.filt='all';render()">All (${N})</button><button class="tab ${exam.filt=='wrong'?'on':''}" onclick="exam.filt='wrong';render()">Wrong only (${wrong})</button></div>
   ${E.qs.map((q,i)=>W[i]||exam.filt=='all'?`<div class="card"><b>${i+1}. ${esc(q.q)}</b>${q.o.map((o,j)=>`<div class="opt ${j===q.a?'ok':(exam.ans[i]===j?'bad':'')}">${esc(o)}${j===q.a?' \u2713 correct':''}${exam.ans[i]===j&&j!==q.a?' \u2717 your answer':''}</div>`).join('')}${exam.ans[i]===undefined?'<div class="mut">Not answered</div>':''}${q.x?`<div class="expl">\ud83d\udca1 ${esc(q.x)}</div>`:''}</div>`:'').join('')}`}
- const i=exam.cur,q=E.qs[i],an=Object.keys(exam.ans).length;
+ const i=exam.cur,q=E.qs[i],an=Object.keys(exam.ans).length,ad=exam.ans[i]!==undefined;
  return `<div class="timer"><span>${esc(E.title)}</span><span id="tm">--:--</span></div>
  <div class="mut">${an} of ${N} answered</div><div class="bar"><i style="width:${an/N*100}%"></i></div>
  <div class="card"><div class="mut">Question ${i+1} of ${N}</div><h3 style="margin-top:6px">${esc(q.q)}</h3>
- ${q.o.map((o,j)=>`<button class="opt ${exam.ans[i]===j?'sel':''}" onclick="pick(${i},${j})"><b>${'ABCDE'[j]}.</b> ${esc(o)}</button>`).join('')}
+ ${q.o.map((o,j)=>{const c=ad?(j===q.a?'ok':(exam.ans[i]===j?'bad':'')):'';return `<button class="opt ${c}" ${ad?'disabled':''} onclick="pick(${i},${j})"><b>${'ABCDE'[j]}.</b> ${esc(o)}${ad&&j===q.a?' \u2713':''}${ad&&exam.ans[i]===j&&j!==q.a?' \u2717 your answer':''}</button>`}).join('')}
+ ${ad?`<div class="expl"><b>${exam.ans[i]===q.a?'\u2705 Correct!':'\u274c Incorrect. The right answer is '+'ABCDE'[q.a]+'. '+esc(q.o[q.a])}</b>${q.x?'<br>\ud83d\udca1 '+esc(q.x):''}</div>`:''}
  <button class="lnk" onclick="exam.flag[${i}]=!exam.flag[${i}];render()">${exam.flag[i]?'\ud83d\udea9 Unflag':'\ud83c\udff3\ufe0f Flag for review'}</button></div>
  <div class="row"><button class="btn alt" ${i?'':'disabled style="opacity:.4"'} onclick="exam.cur--;render()">\u2190 Prev</button><span style="flex:1"></span>
  ${i<N-1?`<button class="btn" onclick="exam.cur++;render()">Next \u2192</button>`:`<button class="btn" onclick="finish()">Submit</button>`}</div>
  <div class="nav">${E.qs.map((_,k)=>`<button class="${k==i?'c':exam.flag[k]?'f':exam.ans[k]!==undefined?'a':''}" onclick="exam.cur=${k};render()">${k+1}</button>`).join('')}</div>
  <button class="btn alt sm" onclick="finish()">Finish &amp; see score</button>`};
-pick=function(i,j){exam.ans[i]=j;render()};
+pick=function(i,j){if(exam.ans[i]!==undefined)return;exam.ans[i]=j;render()};
 finish=function(auto){const N=exam.e.qs.length,left=N-Object.keys(exam.ans).length;
  if(!auto&&left&&!confirm(left+' unanswered. Submit anyway?'))return;
  exam.done=true;const pct=Math.round(exam.e.qs.filter((q,i)=>exam.ans[i]===q.a).length/N*100),H=hist(),h=H[exam.e.id]||{n:0,best:0};
